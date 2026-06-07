@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>租房申请管理 - 房屋租赁管理系统</title>
+  <link rel="stylesheet" href="/assets/css/theme.css" />
+  <style>
+    .section-card { padding: 22px; }
+    .toolbar { display:flex; gap:12px; flex-wrap:wrap; margin: 14px 0 18px; }
+    .table { width:100%; border-collapse: collapse; table-layout: fixed; }
+    .table th, .table td { padding:14px 16px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; font-size:14px; }
+    .table th { background:#f9fafb; }
+    .table th:last-child, .table td:last-child { width: 260px; min-width: 260px; }
+    .actions {
+      display: inline-flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+      min-width: 100%;
+    }
+    .actions .btn {
+      flex: 0 0 auto;
+      min-width: 64px;
+      padding: 9px 14px;
+    }
+    .actions .btn {
+      background: #f8fafc;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease;
+      white-space: nowrap;
+    }
+    .actions .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+      border-color: #0ea5e9;
+      background: #eef6ff;
+    }
+    .actions .btn.btn-success {
+      color: #166534;
+      border-color: #86efac;
+      background: #f0fdf4;
+    }
+    .actions .btn.btn-danger {
+      color: #991b1b;
+      border-color: #fca5a5;
+      background: #fef2f2;
+    }
+    .actions .btn.btn-warn {
+      color: #9a3412;
+      border-color: #fdba74;
+      background: #fff7ed;
+    }
+    .note { margin: 12px 0 0; padding: 14px 16px; background:#eff6ff; color:#1d4ed8; border-radius: 12px; }
+    .empty { padding:40px; text-align:center; color:var(--muted); }
+    .modal-mask { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; padding:20px; z-index:999; }
+    .modal { width:min(720px, 100%); background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,.18); }
+    .modal-header, .modal-footer { padding:18px 22px; border-bottom:1px solid var(--border); }
+    .modal-footer { border-bottom:none; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:10px; }
+    .form-grid { padding:22px; display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:16px; }
+    .field { display:flex; flex-direction:column; gap:8px; }
+    .field.full { grid-column:1/-1; }
+    .lease-box { margin-top: 10px; padding: 12px 14px; border: 1px dashed #cbd5e1; border-radius: 12px; background: #f8fafc; }
+    .confirm-mask { position:fixed; inset:0; background:rgba(15,23,42,.45); display:none; align-items:center; justify-content:center; z-index:1000; padding:20px; }
+    .confirm-box { background:#fff; border-radius:18px; width:min(460px,100%); padding:24px; box-shadow:0 20px 60px rgba(0,0,0,.18); }
+    .confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:20px; }
+    @media (max-width: 900px) { .form-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-topbar" id="topbar"></div>
+
+  <div class="page-shell">
+    <div class="page-hero">
+      <h1 class="page-title">租房申请管理</h1>
+      <p class="page-subtitle">管理员可以审核待处理申请，支持使用租客租期，也可以勾选自定义租期。</p>
+      <div class="note">提示：租客必须先填写完整租期，管理员通过时可选择“使用租客租期”或“自定义租期”。</div>
+    </div>
+
+    <div class="section-card" style="margin-top:20px;">
+      <div class="toolbar">
+        <select id="statusFilter" class="select" style="max-width:180px;">
+          <option value="">全部状态</option>
+          <option value="pending">待审核</option>
+          <option value="approved">已通过</option>
+          <option value="rejected">已拒绝</option>
+        </select>
+        <button class="btn btn-soft" id="refreshBtn">刷新</button>
+        <button class="btn btn-danger" id="clearAllBtn">一键清空所有申请</button>
+      </div>
+      <div id="content"></div>
+    </div>
+  </div>
+
+  <div class="modal-mask" id="approveModalMask">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>审核通过</h2>
+      </div>
+      <form id="approveForm">
+        <input type="hidden" name="id" />
+        <div class="form-grid">
+          <div class="field full">
+            <label><input type="radio" name="mode" value="tenant" checked /> 使用租客提交的租期</label>
+            <label style="margin-left:16px;"><input type="radio" name="mode" value="custom" /> 自定义租期</label>
+          </div>
+          <div class="field">
+            <label>开始出租日期</label>
+            <input class="input" name="lease_start_date" type="date" />
+          </div>
+          <div class="field">
+            <label>结束出租日期</label>
+            <input class="input" name="lease_end_date" type="date" />
+          </div>
+          <div class="field full" id="leasePreview"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-soft" id="approveCancelBtn">取消</button>
+          <button type="submit" class="btn btn-primary">确认通过</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="confirm-mask" id="confirmMask">
+    <div class="confirm-box">
+      <h2 style="margin-top:0;">确认操作</h2>
+      <div id="confirmText" style="color:var(--muted);line-height:1.7;"></div>
+      <div class="confirm-actions">
+        <button class="btn btn-soft" id="confirmCancelBtn">取消</button>
+        <button class="btn btn-danger" id="confirmOkBtn">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/js/nav.js"></script>
+  <script>
+    const currentUser = AppNav.getUser();
+    if (currentUser.role !== 'admin') location.replace('/pages/home/index.html');
+    const content = document.getElementById('content');
+    const statusFilter = document.getElementById('statusFilter');
+    const approveModalMask = document.getElementById('approveModalMask');
+    const approveForm = document.getElementById('approveForm');
+    const leasePreview = document.getElementById('leasePreview');
+    const confirmMask = document.getElementById('confirmMask');
+    const confirmText = document.getElementById('confirmText');
+    const confirmCancelBtn = document.getElementById('confirmCancelBtn');
+    const confirmOkBtn = document.getElementById('confirmOkBtn');
+    let currentRecord = null;
+    let confirmAction = null;
+    document.getElementById('topbar').innerHTML = AppNav.buildNav('申请管理');
+    document.getElementById('logoutLink').addEventListener('click', () => { localStorage.removeItem('token'); localStorage.removeItem('user'); });
+    function statusText(status) { return status === 'approved' ? '已通过' : status === 'rejected' ? '已拒绝' : '待审核'; }
+    function fmt(v) { return v ? String(v).replace('T', ' ').slice(0, 19) : '-'; }
+    function diffMonthsCeil(startDate, endDate) { const start = new Date(startDate); const end = new Date(endDate); if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0; let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()); if (end.getDate() >= start.getDate()) months += 1; return Math.max(months, 1); }
+    function computeRentAmount(housePrice, leaseStartDate, leaseEndDate) { const price = Number(housePrice) || 0; const months = diffMonthsCeil(leaseStartDate, leaseEndDate); return Number((price * months).toFixed(2)); }
+    function calcRentAmount(item) { const rent = Number(item.rent_amount || item.active_rent_amount || 0); if (rent > 0) return rent; const price = Number(item.house_price || 0); const start = item.lease_start_date || item.active_lease_start_date; const end = item.lease_end_date || item.active_lease_end_date; if (!price || !start || !end) return 0; return computeRentAmount(price, start, end); }
+    function openApproveModal(item) {
+      currentRecord = item;
+      const start = item.lease_start_date || '';
+      const end = item.lease_end_date || '';
+      approveForm.lease_start_date.value = start;
+      approveForm.lease_end_date.value = end;
+      leasePreview.innerHTML = `<div class="lease-box">当前申请租期：<strong>${start ? start.slice(0,10) : '-'}</strong> ~ <strong>${end ? end.slice(0,10) : '-'}</strong><br>租金：<strong style="color:var(--danger)">¥${calcRentAmount(item)}</strong></div>`;
+      approveModalMask.style.display = 'flex';
+    }
+    function closeApproveModal() { approveModalMask.style.display = 'none'; }
+    function showConfirm(text, action) { confirmText.textContent = text; confirmAction = action; confirmMask.style.display = 'flex'; }
+    function closeConfirm() { confirmMask.style.display = 'none'; confirmAction = null; }
+
+    function approve(item) { openApproveModal(item); }
+
+    async function removeOne(id) {
+      showConfirm('确认删除这条申请记录吗？删除后该申请及其关联租赁记录将一并移除。', async () => {
+        try {
+          const res = await fetch(`/api/applications/${id}`, { method: 'DELETE' });
+          const r = await res.json();
+          alert(r.message || '操作完成');
+          closeConfirm();
+          loadList();
+        } catch (error) {
+          alert('删除失败，请稍后重试');
+        }
+      });
+    }
+
+    async function clearAll() {
+      showConfirm('确认清空所有申请记录吗？此操作会删除全部申请和租赁记录，并将房源状态恢复为空闲。', async () => {
+        try {
+          const res = await fetch('/api/applications', { method: 'DELETE' });
+          const r = await res.json();
+          alert(r.message || '操作完成');
+          closeConfirm();
+          loadList();
+        } catch (error) {
+          alert('清空失败，请稍后重试');
+        }
+      });
+    }
+
+    async function reject(id) {
+      const reason = prompt('请输入拒绝原因：', '不符合租房条件');
+      if (reason === null) return;
+      const res = await fetch(`/api/applications/${id}/reject`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewer_id: currentUser.id || null, reject_reason: reason })
+      });
+      const r = await res.json();
+      alert(r.message || '操作完成');
+      loadList();
+    }
+
+    async function loadList() {
+      try {
+        const status = statusFilter.value;
+        const url = status ? `/api/applications?status=${status}` : '/api/applications';
+        const res = await fetch(url);
+        const result = await res.json();
+        if (result.code !== 200) { content.innerHTML = `<div class="empty">${result.message || '加载失败'}</div>`; return; }
+        const list = result.data || [];
+        if (!list.length) { content.innerHTML = '<div class="empty">暂无申请记录</div>'; return; }
+        content.innerHTML = `
+          <table class="table">
+            <thead>
+              <tr>
+                <th>租客</th><th>房源</th><th>申请详情</th><th>状态</th><th>申请时间</th><th>审核时间</th><th>租期</th><th>租金</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${list.map(item => `
+                <tr>
+                  <td><strong>${item.user_name || '-'}</strong><div style="color:var(--muted);margin-top:6px;">${item.user_phone || '-'}</div></td>
+                  <td><strong>${item.house_title || '-'}</strong><div style="color:var(--muted);margin-top:6px;">${item.house_address || '-'}</div><div style="color:var(--danger);margin-top:6px;">¥${item.house_price || 0}/月</div></td>
+                  <td>
+                    <div style="margin-top:6px;"><strong>房源状态：</strong>${item.house_status === 'rented' ? '已出租' : '空闲'}</div>
+                    <div style="margin-top:6px;"><strong>租赁记录：</strong>${item.lease_status ? (item.lease_status === 'active' ? '使用中' : '已结束') : '-'}</div>
+                  </td>
+                  <td><span class="badge ${item.apply_status === 'approved' ? 'badge-success' : item.apply_status === 'rejected' ? 'badge-danger' : 'badge-warning'}">${statusText(item.apply_status)}</span></td>
+                  <td>${fmt(item.apply_time)}</td>
+                  <td>${fmt(item.review_time)}</td>
+                  <td>${item.lease_start_date && item.lease_end_date ? `${String(item.lease_start_date).slice(0,10)} ~ ${String(item.lease_end_date).slice(0,10)}` : '-'}</td>
+                  <td>¥${calcRentAmount(item)}</td>
+                  <td>
+                    <div class="actions">
+                      ${item.apply_status === 'pending' ? `<button class="btn btn-success" onclick='approve(${JSON.stringify(item).replace(/'/g, "&apos;")})'>通过</button><button class="btn btn-warn" onclick="reject(${item.id})">拒绝</button><button class="btn btn-danger" onclick="removeOne(${item.id})">删除</button>` : `<button class="btn btn-danger" onclick="removeOne(${item.id})">删除</button>`}
+                    </div>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>`;
+      } catch (e) { content.innerHTML = '<div class="empty">网络异常，请稍后重试</div>'; }
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', loadList);
+    document.getElementById('clearAllBtn').addEventListener('click', clearAll);
+    statusFilter.addEventListener('change', loadList);
+    document.getElementById('approveCancelBtn').addEventListener('click', closeApproveModal);
+    approveModalMask.addEventListener('click', (e) => { if (e.target === approveModalMask) closeApproveModal(); });
+    confirmCancelBtn.addEventListener('click', closeConfirm);
+    confirmMask.addEventListener('click', (e) => { if (e.target === confirmMask) closeConfirm(); });
+    confirmOkBtn.addEventListener('click', async () => { if (confirmAction) await confirmAction(); });
+    approveForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(approveForm).entries());
+      const item = currentRecord;
+      const useCustom = data.mode === 'custom';
+      const payload = { reviewer_id: currentUser.id || null };
+      if (useCustom) {
+        if (!data.lease_start_date || !data.lease_end_date) { alert('请填写完整租期'); return; }
+        if (data.lease_start_date >= data.lease_end_date) { alert('结束日期必须晚于开始日期'); return; }
+        payload.lease_start_date = data.lease_start_date;
+        payload.lease_end_date = data.lease_end_date;
+      }
+      const res = await fetch(`/api/applications/${item.id}/approve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const r = await res.json();
+      alert(r.message || '操作完成');
+      closeApproveModal();
+      loadList();
+    });
+    loadList();
+  </script>
+</body>
+</html>

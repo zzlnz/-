@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>租赁记录 - 房屋租赁管理系统</title>
+  <link rel="stylesheet" href="/assets/css/theme.css" />
+  <style>
+    .section-card { padding: 22px; }
+    .toolbar { display:flex; gap:12px; flex-wrap:wrap; margin: 14px 0 18px; }
+    .table { width:100%; border-collapse: collapse; }
+    .table th, .table td { padding:14px 16px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; font-size:14px; }
+    .table th { background:#f9fafb; }
+    .status { display:inline-flex; padding:6px 10px; border-radius:999px; font-size:12px; font-weight:600; }
+    .active { background:#dcfce7; color:#166534; }
+    .ended { background:#e5e7eb; color:#374151; }
+    .rent-strong { color: var(--danger); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="app-topbar" id="topbar"></div>
+  <div class="page-shell">
+    <div class="page-hero">
+      <h1 class="page-title">租赁记录</h1>
+      <p class="page-subtitle">查看系统中的租赁记录，日期将以更易读的方式展示。</p>
+    </div>
+    <div class="section-card" style="margin-top:20px;">
+      <div class="toolbar">
+        <input id="keyword" class="input" placeholder="搜索租客 / 房源 / 地址" />
+        <select id="statusFilter" class="select" style="max-width:180px;">
+          <option value="">全部状态</option>
+          <option value="active">使用中</option>
+          <option value="ended">已结束</option>
+        </select>
+        <button class="btn btn-soft" id="searchBtn">筛选</button>
+      </div>
+      <div id="content"></div>
+    </div>
+  </div>
+  <script src="/assets/js/nav.js"></script>
+  <script>
+    const user = AppNav.getUser();
+    const content = document.getElementById('content');
+    const keywordEl = document.getElementById('keyword');
+    const statusFilterEl = document.getElementById('statusFilter');
+    document.getElementById('topbar').innerHTML = AppNav.buildNav('租赁记录');
+    document.getElementById('logoutLink').addEventListener('click', () => { localStorage.removeItem('token'); localStorage.removeItem('user'); });
+
+    function fmtDate(v) { if (!v) return '-'; const s = String(v); return s.length >= 10 ? s.slice(0,10) : s; }
+    function fmtDateTime(v) { if (!v) return '-'; const d = new Date(v); if (Number.isNaN(d.getTime())) return String(v).replace('T', ' ').slice(0,19); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`; }
+    function diffMonthsCeil(startDate, endDate) { const start = new Date(startDate); const end = new Date(endDate); if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0; let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()); if (end.getDate() >= start.getDate()) months += 1; return Math.max(months, 1); }
+    function computeRentAmount(housePrice, leaseStartDate, leaseEndDate) { const price = Number(housePrice) || 0; const months = diffMonthsCeil(leaseStartDate, leaseEndDate); return Number((price * months).toFixed(2)); }
+
+    async function loadRecords() {
+      try {
+        const res = await fetch('/api/leases');
+        const result = await res.json();
+        if (result.code !== 200) { content.innerHTML = `<div class="empty-state">${result.message || '加载失败'}</div>`; return; }
+        let list = result.data || [];
+        const keyword = keywordEl.value.trim().toLowerCase();
+        const status = statusFilterEl.value;
+        if (keyword) list = list.filter(item => [item.user_name, item.house_title, item.house_address].some(v => String(v || '').toLowerCase().includes(keyword)));
+        if (status) list = list.filter(item => item.lease_status === status);
+        if (!list.length) { content.innerHTML = '<div class="empty-state">暂无租赁记录</div>'; return; }
+        content.innerHTML = `
+          <table class="table">
+            <thead>
+              <tr>
+                <th>租客</th>
+                <th>房源</th>
+                <th>租期</th>
+                <th>租金</th>
+                <th>状态</th>
+                <th>创建时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${list.map(item => {
+                const rent = Number(item.rent_amount) > 0 ? Number(item.rent_amount) : computeRentAmount(item.house_price, item.lease_start_date, item.lease_end_date);
+                return `
+                <tr>
+                  <td><strong>${item.user_name || '-'}</strong></td>
+                  <td><strong>${item.house_title || '-'}</strong><div style="color:var(--muted);margin-top:6px;">${item.house_address || '-'}</div><div style="color:var(--muted);margin-top:6px;">¥${item.house_price || 0}/月</div></td>
+                  <td>${fmtDate(item.lease_start_date)} ~ ${fmtDate(item.lease_end_date)}</td>
+                  <td class="rent-strong">¥${rent}</td>
+                  <td><span class="status ${item.lease_status === 'active' ? 'active' : 'ended'}">${item.lease_status === 'active' ? '使用中' : '已结束'}</span></td>
+                  <td>${fmtDateTime(item.created_at)}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>`;
+      } catch (error) { content.innerHTML = '<div class="empty-state">网络异常，请稍后重试</div>'; }
+    }
+
+    document.getElementById('searchBtn').addEventListener('click', loadRecords);
+    loadRecords();
+  </script>
+</body>
+</html>

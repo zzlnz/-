@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>我的申请 - 房屋租赁管理系统</title>
+  <link rel="stylesheet" href="/assets/css/theme.css" />
+  <style>
+    .section-card { padding: 22px; }
+    .table { width:100%; border-collapse: collapse; }
+    .table th, .table td { padding:14px 16px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; font-size:14px; }
+    .table th { background:#f9fafb; }
+    .lease-box { margin-top:10px; padding:12px 14px; border-radius:12px; background:#f8fafc; border:1px dashed #cbd5e1; }
+  </style>
+</head>
+<body>
+  <div class="app-topbar" id="topbar"></div>
+
+  <div class="page-shell">
+    <div class="page-hero">
+      <h1 class="page-title">我的申请</h1>
+      <p class="page-subtitle">查看你提交过的申请、审核状态，以及对应的开始/结束租赁日期。</p>
+    </div>
+
+    <div class="section-card" style="margin-top:20px;">
+      <div id="content"></div>
+    </div>
+  </div>
+
+  <script src="/assets/js/nav.js"></script>
+  <script>
+    const currentUser = AppNav.getUser();
+    const content = document.getElementById('content');
+    if (currentUser.role === 'admin') {
+      location.replace('/pages/home/index.html');
+    }
+    document.getElementById('topbar').innerHTML = AppNav.buildNav('我的申请');
+
+    function fmt(v) { if (!v) return '-'; const d = new Date(v); if (Number.isNaN(d.getTime())) return String(v).replace('T', ' ').slice(0, 19); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`; }
+    function dateOnly(v) { return v ? String(v).slice(0, 10) : '-'; }
+    function statusText(status) { return status === 'approved' ? '已通过' : status === 'rejected' ? '已拒绝' : '待审核'; }
+
+    async function loadMine() {
+      if (!currentUser.id) { content.innerHTML = '<div class="empty-state">请先登录后再查看我的申请</div>'; return; }
+      try {
+        const res = await fetch('/api/applications/mine?user_id=' + currentUser.id);
+        const result = await res.json();
+        if (result.code !== 200) { content.innerHTML = `<div class="empty-state">${result.message || '加载失败'}</div>`; return; }
+        const list = result.data || [];
+        if (!list.length) { content.innerHTML = '<div class="empty-state">暂无申请记录，快去首页提交第一条申请吧。</div>'; return; }
+        content.innerHTML = `
+          <table class="table">
+            <thead>
+              <tr>
+                <th>房源</th>
+                <th>申请原因</th>
+                <th>状态</th>
+                <th>申请时间</th>
+                <th>审核时间</th>
+                <th>租赁信息</th>
+                <th>拒绝原因</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${list.map(item => {
+                const rentAmount = item.rent_amount && Number(item.rent_amount) > 0
+                  ? Number(item.rent_amount)
+                  : computeRentAmount(item.house_price, item.lease_start_date, item.lease_end_date);
+                return `
+                <tr>
+                  <td>
+                    <div><strong>${item.house_title || '-'}</strong></div>
+                    <div style="color:var(--muted);margin-top:6px;">${item.house_address || '-'}</div>
+                    <div style="color:var(--danger);margin-top:6px;">¥${item.house_price || 0}/月</div>
+                  </td>
+                  <td>${item.apply_reason || '-'}</td>
+                  <td><span class="badge ${item.apply_status === 'approved' ? 'badge-success' : item.apply_status === 'rejected' ? 'badge-danger' : 'badge-warning'}">${statusText(item.apply_status)}</span></td>
+                  <td>${fmt(item.apply_time)}</td>
+                  <td>${fmt(item.review_time)}</td>
+                  <td>
+                    ${item.lease_start_date && item.lease_end_date ? `
+                      <div class="lease-box">
+                        <div><strong>开始租赁日期：</strong>${dateOnly(item.lease_start_date)}</div>
+                        <div style="margin-top:6px;"><strong>结束租赁日期：</strong>${dateOnly(item.lease_end_date)}</div>
+                        <div style="margin-top:6px;"><strong>租金：</strong>¥${rentAmount}</div>
+                        <div style="margin-top:6px;"><strong>租赁状态：</strong>${item.lease_status === 'active' ? '使用中' : '已结束'}</div>
+                      </div>
+                    ` : '-'}
+                  </td>
+                  <td>${item.reject_reason || '-'}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>`;
+      } catch (error) { content.innerHTML = '<div class="empty-state">网络异常，请稍后重试</div>'; }
+    }
+
+    function diffMonthsCeil(startDate, endDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+      let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
+      if (end.getDate() >= start.getDate()) months += 1;
+      return Math.max(months, 1);
+    }
+
+    function computeRentAmount(housePrice, leaseStartDate, leaseEndDate) {
+      const price = Number(housePrice) || 0;
+      const months = diffMonthsCeil(leaseStartDate, leaseEndDate);
+      return Number((price * months).toFixed(2));
+    }
+
+    document.getElementById('logoutLink').addEventListener('click', () => { localStorage.removeItem('token'); localStorage.removeItem('user'); });
+    loadMine();
+  </script>
+</body>
+</html>

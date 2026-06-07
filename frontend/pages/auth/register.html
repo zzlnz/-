@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>注册 - 房屋租赁管理系统</title>
+  <style>
+    :root { --primary:#2563eb; --primary-hover:#1d4ed8; --bg:#f5f7fb; --card:#fff; --text:#1f2937; --muted:#6b7280; --border:#d1d5db; --danger:#dc2626; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; background: var(--bg); color: var(--text); }
+    .wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .card { width: 100%; max-width: 440px; background: var(--card); border-radius: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.08); padding: 32px; }
+    h1 { margin: 0 0 10px; font-size: 28px; }
+    .sub { margin: 0 0 24px; color: var(--muted); font-size: 14px; }
+    .field { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 8px; color: #374151; font-size: 14px; }
+    input { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; outline: none; }
+    input:focus { border-color: var(--primary); }
+    button { width: 100%; padding: 12px 14px; border: none; border-radius: 10px; background: var(--primary); color: #fff; font-size: 16px; cursor: pointer; }
+    button:hover { background: var(--primary-hover); }
+    .links { margin-top: 16px; font-size: 14px; }
+    .msg { margin-bottom: 12px; font-size: 14px; color: var(--danger); min-height: 20px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>注册</h1>
+      <p class="sub">注册一个租客账号后即可登录使用系统</p>
+      <div id="msg" class="msg"></div>
+      <form id="registerForm">
+        <div class="field"><label>用户名</label><input name="username" required /></div>
+        <div class="field"><label>密码</label><input name="password" type="password" required /></div>
+        <div class="field"><label>真实姓名</label><input name="real_name" /></div>
+        <div class="field"><label>手机号</label><input name="phone" /></div>
+        <button id="submitBtn" type="submit">注册</button>
+      </form>
+      <div class="links"><a href="/pages/auth/login.html">返回登录</a></div>
+    </div>
+  </div>
+  <script>
+    const form = document.getElementById('registerForm');
+    const msg = document.getElementById('msg');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.textContent = '';
+      submitBtn.disabled = true;
+      submitBtn.textContent = '注册中...';
+
+      try {
+        const data = Object.fromEntries(new FormData(form).entries());
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.code !== 200) {
+          msg.textContent = result.message || '注册失败';
+          return;
+        }
+        alert('注册成功，请登录');
+        location.href = '/pages/auth/login.html';
+      } catch (error) {
+        msg.textContent = '网络异常，请稍后重试';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '注册';
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>房源管理 - 房屋租赁管理系统</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --danger: #dc2626;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; background: var(--bg); color: var(--text); }
+    a { color: inherit; text-decoration: none; }
+    .app-topbar { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; padding:16px 24px; background: rgba(255,255,255,.9); backdrop-filter: blur(10px); box-shadow: 0 2px 12px rgba(0,0,0,.05); position: sticky; top: 0; z-index: 20; }
+    .app-brand { font-weight: 800; letter-spacing: .5px; }
+    .app-nav { display:flex; flex-wrap:wrap; gap:12px; }
+    .app-nav a { padding:10px 14px; border-radius:999px; color:var(--text); }
+    .app-nav a:hover { background:#eff6ff; color:var(--primary); }
+    .app-nav a.active { background:#dbeafe; color:#1d4ed8; font-weight:700; }
+    .app-user { color: var(--muted); font-size: 14px; }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 24px; }
+    .page-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+    .page-header h1 { margin: 0 0 8px; }
+    .page-header p { margin: 0; color: var(--muted); }
+    .filter-bar { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .filter-bar input, .filter-bar select, .form-row input, .form-row select, .form-row textarea {
+      width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; outline: none; background: #fff;
+    }
+    .filter-bar input:focus, .filter-bar select:focus, .form-row input:focus, .form-row select:focus, .form-row textarea:focus { border-color: var(--primary); }
+    .filter-bar input { flex: 1; min-width: 220px; }
+    .btn { border: none; border-radius: 10px; padding: 11px 16px; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-light { background: #eef2ff; color: #3730a3; }
+    .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: 14px 16px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; font-size: 14px; }
+    .table th { background: #f9fafb; color: #374151; }
+    .table tr:hover td { background: #fcfcfd; }
+    .status { display: inline-block; padding: 6px 10px; border-radius: 999px; font-size: 12px; }
+    .vacant { background: #dcfce7; color: #166534; }
+    .rented { background: #fee2e2; color: #991b1b; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .image-box { width: 86px; height: 62px; border-radius: 10px; overflow: hidden; background: #f3f4f6; flex-shrink: 0; }
+    .image-box img { width: 100%; height: 100%; object-fit: cover; }
+    .empty { padding: 48px 24px; text-align: center; color: var(--muted); }
+    .notice { padding: 16px; border-radius: 12px; background: #eff6ff; color: #1d4ed8; margin-bottom: 16px; }
+    .modal-mask { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45); display: none; align-items: center; justify-content: center; padding: 20px; z-index: 999; }
+    .modal { width: min(920px, 100%); background: #fff; border-radius: 18px; box-shadow: 0 20px 60px rgba(0,0,0,.18); overflow: hidden; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 18px 22px; border-bottom: 1px solid var(--border); }
+    .modal-header h2 { margin: 0; font-size: 18px; }
+    .modal-close { border: none; background: transparent; font-size: 22px; cursor: pointer; color: var(--muted); }
+    .modal-body { padding: 22px; }
+    .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .form-row { display: flex; flex-direction: column; gap: 8px; }
+    .form-row.full { grid-column: 1 / -1; }
+    .form-row label { font-size: 14px; color: #374151; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; padding: 18px 22px; border-top: 1px solid var(--border); }
+    .toast { position: fixed; right: 20px; bottom: 20px; min-width: 220px; max-width: 360px; background: #111827; color: #fff; padding: 14px 16px; border-radius: 12px; box-shadow: 0 12px 24px rgba(0,0,0,.2); display: none; z-index: 1000; }
+    @media (max-width: 900px) {
+      .table, .table thead, .table tbody, .table th, .table td, .table tr { display: block; }
+      .table thead { display: none; }
+      .table tr { border-bottom: 1px solid var(--border); padding: 12px 0; }
+      .table td { border: none; padding: 8px 16px; }
+      .form-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-topbar" id="topbar"></div>
+  <div class="wrap">
+    <div id="accessNotice" class="notice" style="display:none;"></div>
+    <div class="page-header">
+      <div>
+        <h1>房源管理</h1>
+        <p>管理员可在此查看、新增、编辑、删除房源，并修改房源状态。</p>
+      </div>
+      <button class="btn btn-primary" id="addBtn">+ 新增房源</button>
+    </div>
+    <div class="filter-bar">
+      <input id="keyword" placeholder="搜索房源标题 / 地址 / 户型" />
+      <select id="statusFilter" style="max-width: 180px;">
+        <option value="">全部状态</option>
+        <option value="vacant">空闲</option>
+        <option value="rented">已出租</option>
+      </select>
+      <button class="btn btn-light" id="searchBtn">搜索</button>
+      <button class="btn btn-light" id="resetBtn">重置</button>
+    </div>
+    <div class="card"><div id="content"></div></div>
+  </div>
+  <div class="modal-mask" id="modalMask">
+    <div class="modal">
+      <div class="modal-header"><h2 id="modalTitle">新增房源</h2><button class="modal-close" id="closeModalBtn">×</button></div>
+      <div class="modal-body">
+        <form id="houseForm">
+          <input type="hidden" name="id" />
+          <div class="form-grid">
+            <div class="form-row"><label>房源标题</label><input name="house_title" required /></div>
+            <div class="form-row"><label>房源地址</label><input name="house_address" required /></div>
+            <div class="form-row"><label>面积（㎡）</label><input name="house_area" type="number" step="0.01" min="0" required /></div>
+            <div class="form-row"><label>租金（元/月）</label><input name="house_price" type="number" step="0.01" min="0" required /></div>
+            <div class="form-row"><label>户型</label><input name="house_type" placeholder="如：两居室" /></div>
+            <div class="form-row"><label>楼层</label><input name="house_floor" placeholder="如：8/18" /></div>
+            <div class="form-row"><label>朝向</label><input name="house_direction" placeholder="如：南北通透" /></div>
+            <div class="form-row"><label>房源状态</label><select name="house_status"><option value="vacant">空闲</option><option value="rented">已出租</option></select></div>
+            <div class="form-row full"><label>房源图片地址</label><input name="house_image" placeholder="请输入图片 URL" /></div>
+            <div class="form-row full"><label>房源描述</label><textarea name="house_desc" rows="4" placeholder="请输入房源描述"></textarea></div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer"><button class="btn btn-light" id="cancelBtn" type="button">取消</button><button class="btn btn-primary" id="saveBtn" type="button">保存</button></div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+  <script src="/assets/js/nav.js"></script>
+  <script>
+    const currentUser = AppNav.getUser();
+    const content = document.getElementById('content');
+    const modalMask = document.getElementById('modalMask');
+    const modalTitle = document.getElementById('modalTitle');
+    const houseForm = document.getElementById('houseForm');
+    const keywordEl = document.getElementById('keyword');
+    const statusFilterEl = document.getElementById('statusFilter');
+    const toastEl = document.getElementById('toast');
+    const accessNotice = document.getElementById('accessNotice');
+    const addBtn = document.getElementById('addBtn');
+    let currentEditId = null;
+
+    document.getElementById('topbar').innerHTML = AppNav.buildNav('房源管理');
+    document.getElementById('logoutLink').addEventListener('click', () => { localStorage.removeItem('token'); localStorage.removeItem('user'); });
+
+    function showToast(message) { toastEl.textContent = message; toastEl.style.display = 'block'; clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toastEl.style.display = 'none', 2000); }
+    function openModal(title, data = null) { modalTitle.textContent = title; modalMask.style.display = 'flex'; if (data) { currentEditId = data.id; houseForm.id.value = data.id || ''; houseForm.house_title.value = data.house_title || ''; houseForm.house_address.value = data.house_address || ''; houseForm.house_area.value = data.house_area ?? ''; houseForm.house_price.value = data.house_price ?? ''; houseForm.house_type.value = data.house_type || ''; houseForm.house_floor.value = data.house_floor || ''; houseForm.house_direction.value = data.house_direction || ''; houseForm.house_status.value = data.house_status || 'vacant'; houseForm.house_image.value = data.house_image || ''; houseForm.house_desc.value = data.house_desc || ''; } else { currentEditId = null; houseForm.reset(); houseForm.house_status.value = 'vacant'; } }
+    function closeModal() { modalMask.style.display = 'none'; }
+    function statusLabel(status) { return status === 'rented' ? '已出租' : '空闲'; }
+
+    const isAdmin = currentUser.role === 'admin';
+    if (!isAdmin) {
+      accessNotice.style.display = 'block';
+      accessNotice.textContent = '当前账号不是管理员，无法进入房源管理。系统已保留页面访问，但新增、编辑、删除建议仅管理员使用。';
+      addBtn.disabled = true;
+      addBtn.textContent = '仅管理员可新增';
+      addBtn.style.opacity = '0.6';
+    }
+
+    function renderList(items) {
+      if (!items.length) { content.innerHTML = '<div class="empty">暂无房源数据，点击“新增房源”开始添加。</div>'; return; }
+      content.innerHTML = `<table class="table"><thead><tr><th>房源</th><th>地址</th><th>租金</th><th>状态</th><th>更新时间</th><th>操作</th></tr></thead><tbody>${items.map(item => `<tr><td><div style="display:flex; gap:12px; align-items:flex-start;"><div class="image-box"><img src="${item.house_image || 'https://via.placeholder.com/300x200?text=House'}" alt="${item.house_title}"></div><div><div><strong>${item.house_title}</strong></div><div style="color:#6b7280; margin-top:6px;">${item.house_type || '-'} · ${item.house_area || 0}㎡ · ${item.house_direction || '-'}</div><div style="color:#6b7280; margin-top:6px;">${item.house_floor || '-'}</div></div></div></td><td>${item.house_address || '-'}</td><td style="color:#dc2626; font-weight:bold;">¥${item.house_price || 0}/月</td><td><span class="status ${item.house_status}">${statusLabel(item.house_status)}</span><div style="margin-top:10px;"><select data-id="${item.id}" class="status-change" style="padding:8px 10px; border:1px solid #e5e7eb; border-radius:8px;"><option value="vacant" ${item.house_status === 'vacant' ? 'selected' : ''}>空闲</option><option value="rented" ${item.house_status === 'rented' ? 'selected' : ''}>已出租</option></select></div></td><td>${item.updated_at ? item.updated_at.replace('T', ' ').slice(0, 19) : '-'}</td><td><div class="actions"><button class="btn btn-success" data-action="edit" data-id="${item.id}">编辑</button><button class="btn btn-danger" data-action="delete" data-id="${item.id}">删除</button></div></td></tr>`).join('')}</tbody></table>`;
+      content.querySelectorAll('[data-action="edit"]').forEach(btn => btn.addEventListener('click', () => { const id = btn.dataset.id; const house = items.find(h => String(h.id) === String(id)); openModal('编辑房源', house); }));
+      content.querySelectorAll('[data-action="delete"]').forEach(btn => btn.addEventListener('click', async () => { if (!isAdmin) return showToast('只有管理员可以删除房源'); const id = btn.dataset.id; if (!confirm('确定要删除这条房源吗？')) return; try { const res = await fetch(`/api/houses/${id}`, { method: 'DELETE' }); const result = await res.json(); showToast(result.message || '删除成功'); loadList(); } catch (error) { showToast('网络异常，请稍后重试'); } }));
+      content.querySelectorAll('.status-change').forEach(select => select.addEventListener('change', async (e) => { if (!isAdmin) { e.target.value = e.target.dataset.origin || 'vacant'; return showToast('只有管理员可以修改状态'); } const id = select.dataset.id; const house = items.find(h => String(h.id) === String(id)); if (!house) return; try { const payload = { ...house, house_status: e.target.value }; const res = await fetch(`/api/houses/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await res.json(); showToast(result.message || '状态更新成功'); loadList(); } catch (error) { showToast('网络异常，请稍后重试'); } }));
+    }
+
+    async function loadList() {
+      try { const keyword = keywordEl.value.trim(); const status = statusFilterEl.value; const res = await fetch('/api/houses?keyword=' + encodeURIComponent(keyword)); const result = await res.json(); if (result.code !== 200) { content.innerHTML = `<div class="empty">${result.message || '加载失败'}</div>`; return; } let list = result.data || []; if (status) list = list.filter(item => item.house_status === status); renderList(list); } catch (error) { content.innerHTML = '<div class="empty">网络异常，请稍后重试</div>'; }
+    }
+
+    if (isAdmin) addBtn.addEventListener('click', () => openModal('新增房源'));
+    document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+    document.getElementById('cancelBtn').addEventListener('click', closeModal);
+    document.getElementById('searchBtn').addEventListener('click', loadList);
+    document.getElementById('resetBtn').addEventListener('click', () => { keywordEl.value = ''; statusFilterEl.value = ''; loadList(); });
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      if (!isAdmin) return showToast('只有管理员可以保存房源');
+      const data = Object.fromEntries(new FormData(houseForm).entries()); data.house_area = Number(data.house_area || 0); data.house_price = Number(data.house_price || 0); data.owner_id = currentUser.id || 1;
+      try { const method = currentEditId ? 'PUT' : 'POST'; const url = currentEditId ? `/api/houses/${currentEditId}` : '/api/houses'; const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); const result = await res.json(); if (result.code !== 200) { showToast(result.message || '保存失败'); return; } showToast(result.message || '保存成功'); closeModal(); loadList(); } catch (error) { showToast('网络异常，请稍后重试'); }
+    });
+    modalMask.addEventListener('click', (e) => { if (e.target === modalMask) closeModal(); });
+    loadList();
+  </script>
+</body>
+</html>

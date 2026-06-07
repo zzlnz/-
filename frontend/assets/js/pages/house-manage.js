@@ -1,0 +1,1 @@
+// house manage page logic

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>登录 - 房屋租赁管理系统</title>
+  <style>
+    :root { --primary:#2563eb; --primary-hover:#1d4ed8; --bg:#f5f7fb; --card:#fff; --text:#1f2937; --muted:#6b7280; --border:#d1d5db; --danger:#dc2626; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: Arial, sans-serif; background: var(--bg); color: var(--text); }
+    .wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+    .card { width: 100%; max-width: 440px; background: var(--card); border-radius: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.08); padding: 32px; }
+    h1 { margin: 0 0 10px; font-size: 28px; }
+    .sub { margin: 0 0 24px; color: var(--muted); font-size: 14px; }
+    .field { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 8px; color: #374151; font-size: 14px; }
+    input { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; outline: none; }
+    input:focus { border-color: var(--primary); }
+    button { width: 100%; padding: 12px 14px; border: none; border-radius: 10px; background: var(--primary); color: #fff; font-size: 16px; cursor: pointer; }
+    button:hover { background: var(--primary-hover); }
+    .links { margin-top: 16px; display: flex; justify-content: space-between; font-size: 14px; }
+    .msg { margin-bottom: 12px; font-size: 14px; color: var(--danger); min-height: 20px; }
+    .tip { margin-top: 16px; padding: 12px; background: #eff6ff; border-radius: 10px; font-size: 14px; color: #1d4ed8; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>登录</h1>
+      <p class="sub">登录后可浏览房源、查看详情并提交租房申请</p>
+      <div id="msg" class="msg"></div>
+      <form id="loginForm">
+        <div class="field">
+          <label>用户名</label>
+          <input name="username" placeholder="请输入用户名" value="tenant1" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label>密码</label>
+          <input name="password" type="password" placeholder="请输入密码" value="123456" autocomplete="current-password" />
+        </div>
+        <button id="submitBtn" type="submit">登录</button>
+      </form>
+      <div class="links">
+        <a href="/pages/auth/register.html">没有账号？去注册</a>
+        <a href="/pages/home/index.html">游客浏览首页</a>
+      </div>
+      <div class="tip">演示账号：admin / 123456，tenant1 / 123456</div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('loginForm');
+    const msg = document.getElementById('msg');
+    const submitBtn = document.getElementById('submitBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.textContent = '';
+      submitBtn.disabled = true;
+      submitBtn.textContent = '登录中...';
+
+      try {
+        const data = Object.fromEntries(new FormData(form).entries());
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+        const result = await res.json();
+        if (result.code !== 200) {
+          msg.textContent = result.message || '登录失败';
+          return;
+        }
+        localStorage.setItem('token', result.data.token);
+        localStorage.setItem('user', JSON.stringify(result.data.user));
+        location.href = '/pages/home/index.html';
+      } catch (error) {
+        msg.textContent = '网络异常，请稍后重试';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '登录';
+      }
+    });
+  </script>
+</body>
+</html>

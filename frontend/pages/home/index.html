@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>首页 - 房源列表</title>
+  <link rel="stylesheet" href="/assets/css/theme.css" />
+  <style>
+    .hero-grid { display:grid; grid-template-columns: 1.6fr .9fr; gap:18px; align-items:stretch; }
+    .hero-card { background: rgba(255,255,255,.8); border:1px solid #e5e7eb; border-radius:18px; padding:18px; display:flex; flex-direction:column; justify-content:space-between; min-height: 220px; }
+    .hero-card .tag { display:inline-flex; padding:6px 10px; border-radius:999px; font-size:12px; width:fit-content; }
+    .hero-card .num { font-size: 28px; font-weight: 800; margin: 12px 0 6px; }
+    .hero-card .desc { color: var(--muted); font-size: 14px; line-height: 1.7; }
+    .section { margin-top: 24px; }
+    .section-head { display:flex; justify-content:space-between; align-items:flex-end; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .search { display: flex; gap: 12px; margin-bottom: 20px; }
+    .search input { flex: 1; }
+    .grid-houses { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+    .card { overflow:hidden; transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; border: 1px solid rgba(229,231,235,.75); }
+    .card:hover { transform: translateY(-6px); box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14); border-color: rgba(37, 99, 235, 0.18); }
+    .card img { width:100%; height:180px; object-fit:cover; display:block; }
+    .card .body { padding:16px; }
+    .title { margin:0 0 8px; font-size:18px; }
+    .meta { color:var(--muted); font-size:14px; margin-bottom:8px; line-height:1.6; }
+    .price { color:var(--danger); font-size:20px; font-weight:800; margin:10px 0; }
+    .quick-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    .quick-link { background:#fff; border:1px solid var(--border); border-radius:14px; padding:16px; box-shadow: var(--shadow); }
+    .quick-link strong { display:block; margin-bottom: 6px; }
+    .quick-link span { color: var(--muted); font-size: 14px; line-height: 1.7; }
+    .role-admin { background:#ecfdf5; color:#166534; }
+    .role-tenant { background:#eff6ff; color:#1d4ed8; }
+    .role-guest { background:#f3f4f6; color:#374151; }
+    @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="app-topbar" id="topbar"></div>
+  <div class="page-shell">
+    <div class="page-hero">
+      <div class="hero-grid">
+        <div>
+          <h1 class="page-title" id="welcomeTitle">欢迎来到房屋租赁管理系统</h1>
+          <p class="page-subtitle" id="welcomeDesc">你可以在这里查看房源、提交申请、管理房源与审核申请。系统会根据你的角色自动显示不同入口，避免页面混乱。</p>
+          <div class="toolbar" id="heroActions" style="margin-top:18px;"></div>
+        </div>
+        <div class="hero-card card-surface" id="roleCard"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div><h2 style="margin:0;">快捷入口</h2><p style="margin:6px 0 0; color:var(--muted);">根据你的角色自动展示常用功能。</p></div>
+      </div>
+      <div class="quick-grid" id="quickLinks"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <div><h2 style="margin:0;">房源列表</h2><p style="margin:6px 0 0; color:var(--muted);">搜索房源标题、地址或者户型。</p></div>
+      </div>
+      <div class="search">
+        <input id="keyword" class="input" placeholder="搜索房源标题 / 地址 / 户型" />
+        <button id="searchBtn" class="btn btn-primary">搜索</button>
+      </div>
+      <div id="list" class="grid-houses"></div>
+    </div>
+  </div>
+  <script src="/assets/js/nav.js"></script>
+  <script>
+    const listEl = document.getElementById('list');
+    const keywordEl = document.getElementById('keyword');
+    const quickLinksEl = document.getElementById('quickLinks');
+    const roleCardEl = document.getElementById('roleCard');
+    const heroActionsEl = document.getElementById('heroActions');
+    const welcomeTitleEl = document.getElementById('welcomeTitle');
+    const welcomeDescEl = document.getElementById('welcomeDesc');
+    const currentUser = AppNav.getUser();
+    const isAdmin = currentUser.role === 'admin';
+    const isLogin = !!currentUser.username;
+
+    document.getElementById('topbar').innerHTML = AppNav.buildNav('首页');
+
+    if (isAdmin) {
+      welcomeTitleEl.textContent = '管理员控制台';
+      welcomeDescEl.textContent = '你当前是管理员，可以管理房源、审核申请、查看租赁记录。下面的入口会直接带你进入常用管理功能。';
+      roleCardEl.innerHTML = `<span class="tag role-admin">管理员</span><div class="num">管理权限已开启</div><div class="desc">你可以新增/编辑/删除房源，审核租房申请，并查看系统中的租赁记录。</div>`;
+      heroActionsEl.innerHTML = '';
+      quickLinksEl.innerHTML = `<a class="quick-link" href="/pages/house/manage.html"><strong>房源管理</strong><span>新增、编辑、删除房源并修改状态。</span></a><a class="quick-link" href="/pages/application/manage.html"><strong>申请管理</strong><span>审核租客申请，审批通过后自动生成租赁记录。</span></a><a class="quick-link" href="/pages/lease/records.html"><strong>租赁记录</strong><span>查看所有租赁记录，掌握房源出租状态。</span></a><a class="quick-link" href="/pages/user/profile.html"><strong>个人中心</strong><span>查看管理员信息和快捷入口。</span></a>`;
+    } else if (isLogin) {
+      welcomeTitleEl.textContent = '欢迎回来，租客用户';
+      welcomeDescEl.textContent = '你可以在这里搜索房源、查看详情、提交申请，并在“我的申请”里查看审核状态。';
+      roleCardEl.innerHTML = `<span class="tag role-tenant">租客</span><div class="num">可以浏览并提交申请</div><div class="desc">房源管理、申请审核等管理功能只对管理员开放，你可以专注于找房和申请。</div>`;
+      heroActionsEl.innerHTML = '';
+      quickLinksEl.innerHTML = `<a class="quick-link" href="/pages/home/index.html"><strong>房源列表</strong><span>浏览所有房源，找到心仪的房子。</span></a><a class="quick-link" href="/pages/application/mine.html"><strong>我的申请</strong><span>查看我提交的申请以及审核状态。</span></a><a class="quick-link" href="/pages/user/profile.html"><strong>个人中心</strong><span>查看我的资料和快捷入口。</span></a>`;
+    } else {
+      welcomeTitleEl.textContent = '欢迎游客访问';
+      welcomeDescEl.textContent = '你可以先浏览房源；如果想提交申请或查看记录，请先登录。';
+      roleCardEl.innerHTML = `<span class="tag role-guest">游客</span><div class="num">建议先登录</div><div class="desc">登录后可获得完整功能，包括提交租房申请和查看个人信息。</div>`;
+      heroActionsEl.innerHTML = `<a class="btn btn-primary" href="/pages/auth/login.html">去登录</a><a class="btn btn-soft" href="/pages/auth/register.html">去注册</a>`;
+      quickLinksEl.innerHTML = `<a class="quick-link" href="/pages/auth/login.html"><strong>登录</strong><span>登录后可提交租房申请和查看个人中心。</span></a><a class="quick-link" href="/pages/auth/register.html"><strong>注册</strong><span>没有账号？先注册一个租客账号。</span></a><a class="quick-link" href="/pages/home/index.html"><strong>浏览房源</strong><span>先看看系统里的房源列表。</span></a>`;
+    }
+
+    function render(items) {
+      if (!items.length) { listEl.innerHTML = '<div class="empty-state">暂无房源数据</div>'; return; }
+      listEl.innerHTML = items.map(item => `
+        <a class="card card-surface" href="/pages/house/detail.html?id=${item.id}" style="display:block; color:inherit;">
+          <img src="${item.house_image || 'https://via.placeholder.com/1200x700?text=House'}" alt="${item.house_title}">
+          <div class="body">
+            <h3 class="title">${item.house_title}</h3>
+            <div class="meta">${item.house_address}</div>
+            <div class="meta">${item.house_type || '-'} · ${item.house_area}㎡ · ${item.house_direction || '-'}</div>
+            <div class="price">¥${item.house_price}/月</div>
+          </div>
+        </a>
+      `).join('');
+    }
+
+    async function loadHouses() {
+      try { const keyword = keywordEl.value.trim(); const res = await fetch('/api/houses?keyword=' + encodeURIComponent(keyword)); const result = await res.json(); render(result.data || []); } catch (error) { listEl.innerHTML = '<div class="empty-state">网络异常，请稍后重试</div>'; }
+    }
+    document.getElementById('searchBtn').addEventListener('click', loadHouses);
+    document.getElementById('logoutLink').addEventListener('click', () => { localStorage.removeItem('token'); localStorage.removeItem('user'); });
+    loadHouses();
+  </script>
+</body>
+</html>

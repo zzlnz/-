@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>房源编辑 - 房屋租赁管理系统</title>
+  <style>
+    :root { --primary:#2563eb; --bg:#f5f7fb; --card:#fff; --text:#1f2937; --muted:#6b7280; --border:#e5e7eb; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:Arial, sans-serif; background:var(--bg); color:var(--text); }
+    .wrap { max-width: 980px; margin: 0 auto; padding: 24px; }
+    .panel { background:#fff; border-radius:16px; box-shadow:0 8px 24px rgba(0,0,0,.06); overflow:hidden; }
+    .head, .foot { padding: 18px 22px; border-bottom:1px solid var(--border); }
+    .foot { border-top:1px solid var(--border); border-bottom:none; display:flex; justify-content:flex-end; gap:10px; }
+    h1 { margin:0; }
+    .sub { color:var(--muted); margin-top:8px; }
+    .body { padding:22px; }
+    .grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px; }
+    .field { display:flex; flex-direction:column; gap:8px; }
+    .full { grid-column:1 / -1; }
+    input, select, textarea { width:100%; padding:12px 14px; border:1px solid var(--border); border-radius:10px; outline:none; }
+    textarea { min-height:120px; resize:vertical; }
+    button { border:none; border-radius:10px; padding:11px 16px; cursor:pointer; }
+    .btn-primary { background:var(--primary); color:#fff; }
+    .btn-light { background:#eef2ff; color:#3730a3; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <div class="head">
+        <h1>房源编辑</h1>
+        <div class="sub">可用于新增或编辑房源信息。</div>
+      </div>
+      <div class="body">
+        <form id="form">
+          <input type="hidden" name="id" />
+          <div class="grid">
+            <div class="field"><label>房源标题</label><input name="house_title" /></div>
+            <div class="field"><label>房源地址</label><input name="house_address" /></div>
+            <div class="field"><label>面积</label><input name="house_area" type="number" step="0.01" /></div>
+            <div class="field"><label>租金</label><input name="house_price" type="number" step="0.01" /></div>
+            <div class="field"><label>户型</label><input name="house_type" /></div>
+            <div class="field"><label>楼层</label><input name="house_floor" /></div>
+            <div class="field"><label>朝向</label><input name="house_direction" /></div>
+            <div class="field"><label>房源状态</label><select name="house_status"><option value="vacant">空闲</option><option value="rented">已出租</option></select></div>
+            <div class="field full"><label>图片地址</label><input name="house_image" /></div>
+            <div class="field full"><label>描述</label><textarea name="house_desc"></textarea></div>
+          </div>
+        </form>
+      </div>
+      <div class="foot">
+        <button class="btn-light" id="backBtn" type="button">返回</button>
+        <button class="btn-primary" id="saveBtn" type="button">保存</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const id = params.get('id');
+    const form = document.getElementById('form');
+
+    document.getElementById('backBtn').addEventListener('click', () => {
+      location.href = '/pages/house/manage.html';
+    });
+
+    async function loadDetail() {
+      if (!id) return;
+      const res = await fetch('/api/houses/' + id);
+      const result = await res.json();
+      if (result.code !== 200) return;
+      const h = result.data;
+      form.id.value = h.id || '';
+      form.house_title.value = h.house_title || '';
+      form.house_address.value = h.house_address || '';
+      form.house_area.value = h.house_area ?? '';
+      form.house_price.value = h.house_price ?? '';
+      form.house_type.value = h.house_type || '';
+      form.house_floor.value = h.house_floor || '';
+      form.house_direction.value = h.house_direction || '';
+      form.house_status.value = h.house_status || 'vacant';
+      form.house_image.value = h.house_image || '';
+      form.house_desc.value = h.house_desc || '';
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      const data = Object.fromEntries(new FormData(form).entries());
+      data.house_area = Number(data.house_area || 0);
+      data.house_price = Number(data.house_price || 0);
+      const method = id ? 'PUT' : 'POST';
+      const url = id ? '/api/houses/' + id : '/api/houses';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      const result = await res.json();
+      alert(result.message || '保存成功');
+      location.href = '/pages/house/manage.html';
+    });
+
+    loadDetail();
+  </script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "name": "house-rental-management-system",
+  "version": "1.0.0",
+  "description": "课程设计级房屋租赁管理系统，基于 HTML/CSS/JavaScript + Node.js + Express + MySQL 8.0",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node backend/server.js"
+  },
+  "keywords": [
+    "house-rental",
+    "express",
+    "mysql2",
+    "course-design"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.14.3",
+    "multer": "^1.4.5-lts.1",
+    "bcryptjs": "^2.4.3"
+  }
+}
